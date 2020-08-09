@@ -14,6 +14,7 @@ class UserCard extends Model
      * @var array
      */
     protected $table = 'user_cards';
+    
     protected $fillable = [
         'user_id',
         'card_number',

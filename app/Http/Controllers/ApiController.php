@@ -87,6 +87,28 @@ class ApiController extends Controller
         return json_decode($result->getBody());
     }
 
+    public function makeTransfer($recipient, $amount)
+    {
+        $client = new Client([
+            'curl' => [CURLOPT_SSL_VERIFYPEER => env('VERIFY_SSL')]
+        ]);
+
+        $paymentData = [
+            'source' => 'balance',
+            'recipient' => $recipient,
+            'amount' => $amount,
+            'currency' => 'NGN',
+
+        ];
+        $result = $client->request('post', 'https://api.paystack.co/transfer', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . env('PAY_STACK_TEST_SECRET_KEY')
+            ],
+            'form_params' => $paymentData
+        ]);
+        return json_decode($result->getBody());
+    }
+
 
     public function checkApi(){
         return  response()->json(['status' => 'success','result' => 'new lumen hello this is Api']);

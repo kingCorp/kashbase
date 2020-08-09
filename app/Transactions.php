@@ -6,6 +6,6 @@ class Transactions extends Model {
    //
    protected $table = 'transactions';
 
-   protected $fillable = ['user_id', 'reciepient_id', 'description', 'type', 'amount', 'status', 'prev_balance', 'current_balance'];
+   protected $fillable = ['user_id', 'reciepient_id', 'description','transaction_date', 'type', 'amount', 'status', 'prev_balance', 'current_balance'];
 
 }

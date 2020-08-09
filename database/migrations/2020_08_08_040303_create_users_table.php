@@ -25,7 +25,7 @@ class CreateUsersTable extends Migration
             $table->string('sex')->nullable();
             $table->string('api_token');
             $table->integer('id_user_card')->nullable();
-            $table->string('authorization_ref')->nullable();
+            $table->string('authorization_code')->nullable();
             $table->double('wallet')->default(0.00);
             $table->rememberToken();
             $table->timestamps();

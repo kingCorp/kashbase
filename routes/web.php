@@ -24,8 +24,20 @@ $router->group(['prefix'=>'api/v1'], function() use($router){
 
     $router->group(['middleware' => 'auth'], function () use ($router) {
 
-        $router->get('profile/','UserController@profile');
-        
+        $router->group(['prefix'=>'user'], function() use($router){
+            $router->get('profile/','UserController@profile');
+
+            $router->post('transfer/','TransactionController@transfer');
+            $router->post('verify/','TransactionController@verifyUser');
+            $router->post('recharge/','TransactionController@rechargeWallet');
+            $router->get('card/','TransactionController@viewCards');
+            $router->post('card/{id}','TransactionController@setCard');
+            $router->delete('card/{id}','TransactionController@deleteCards');
+            $router->post('initialize/','TransactionController@initializeTransaction');
+            $router->post('handle/','TransactionController@handleRedirection');
+            $router->get('transactions/','TransactionController@myTransaction');
+        });
+ 
     });
 
     

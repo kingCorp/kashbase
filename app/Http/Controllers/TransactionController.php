@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\User;
 use Validator;
-use Validator;
 use App\Payment;
 use App\UserCard;
+use App\ActivityLog;
 use App\Transactions;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
@@ -24,6 +24,8 @@ class TransactionController extends ApiController
             //validate the post request
             $validator = Validator::make($request->all(), [
                 'password' => 'required',
+                'amount' => 'required|numeric',
+                'reciepient_id' => 'required'
             ]);
             //if validator fails return json error response
             if ($validator->fails()) {
@@ -37,13 +39,32 @@ class TransactionController extends ApiController
             }
 
             $user = Auth::user();
+            $amount = $request->get('amount');
 
             if(!$user){
                 return $this->respondWithError(404, 'User Login failed', 'User is not registered');
             }
 
+            $reciepient = User::find($request->get('reciepient_id'));
+            if(is_null($reciepient)){
+                return $this->respondWithError(404, 'User Payment failed', 'User not found');
+            }
+
+            $transaction = Transactions::create([
+                'user_id' => $user->id,
+                'amount' => $amount,
+                'type' => 'CREDIT',
+                'status' => 'PAID',
+                'currency' => 'NGN',
+                'description'=> 'WALLET TRANSFER',
+                'reciepient_id' => $user->id,
+                'prev_balance'   => $user->wallet,
+                'current_balance' => ($user->wallet + $amount),
+            ]);
+
             if(Hash::check($request->get('password'), $user->password)){
-                
+                $data = ['message'=> 'Transaction successfull'];
+                return $this->respondWithoutError($data);
             } else {
                 return $this->respondWithError(404, 'User Transaction failed', 'User Password incorrect');
             }
@@ -75,10 +96,10 @@ class TransactionController extends ApiController
                 return $this->respondWithError(404, 'Email failed', $msg);
             }
 
-            $user = User::where('email', $request->get('emaill'))->first();
+            $user = User::where('email', $request->get('email'))->first();
 
             if(!$user){
-                return $this->respondWithError(404, 'User Login failed', 'User is not registered');
+                return $this->respondWithError(404, 'User Verify failed', 'User is not found');
             }
 
             $data = ['message' => 'Verification successful', "email" => $user->email, "Full name"=> $user->full_name];
@@ -100,8 +121,7 @@ class TransactionController extends ApiController
 
              //validate the post request
              $validator = Validator::make($request->all(), [
-                'amount' => 'required|numeric',
-                'reciepient_id' => 'required'
+                'amount' => 'required|numeric'
             ]);
             //if validator fails return json error response
             if ($validator->fails()) {
@@ -114,27 +134,22 @@ class TransactionController extends ApiController
                 return $this->respondWithError(404, 'Payment failed', $msg);
             }
 
-            $reciepient = User::find($request->get('reciepient_id'));
-            if(is_null($reciepient)){
-                return $this->respondWithError(404, 'User Payment failed', 'User not found');
-            }
-
             if(is_null($user->id_user_card)){
                 return $this->respondWithError(404, 'User Payment failed', 'User has no card');
             }
 
-            $result = $this->chargeCard($user->authorization_ref, $user->email, ($request->get('amount') * 100));
+            $result = $this->chargeCard($user->authorization_code, $user->email, ($request->get('amount') * 100));
 
             if ($result->status) {
                 $amount = $request->get('amount');
-                Transactions::create([
+                $transaction = Transactions::create([
                     'user_id' => $user->id,
                     'amount' => $amount,
                     'type' => 'CREDIT',
-                    'status' => 'PAID',
+                    'status' => 'completed',
                     'currency' => 'NGN',
                     'description'=> 'RECHARGE WALLET ',
-                    'reciepient_id' => $reciepient->id,
+                    'reciepient_id' => $user->id,
                     'prev_balance'   => $user->wallet,
                     'current_balance' => ($user->wallet + $amount),
                 ]);
@@ -143,41 +158,43 @@ class TransactionController extends ApiController
                 $user->save();
 
                 ActivityLog::create([
-                    'id_user' => $user->id,
+                    'user_id' => $user->id,
                     'action' => 'RECHARGE WALLET '.$user->full_name,
-                    'reciepient_id' => $reciepient->id
+                    'transaction_id' => $transaction->id
                 ]);
 
                 $response = [
-                    'message' => 'Ticket Payment successfull',
-                    'ticket' => $orderTicket
+                    'message' => 'Recharge wallet successfull',
+                    'transaction' => $transaction
                 ];
                 return $this->respondWithoutError($response);
             } else {
                 return $this->respondWithError(400, 'Payment charge failed', $result->message);
             }
 
-
-
         } catch (\Exception $ex) {
-            Log::error("TransactionController::rechagreOrganizer()  " . $ex->getMessage());
-            return $this->respondWithError(404, 'Transaction failed failed', 'Something Went wrong');
+            Log::error("TransactionController::rechagre()  " . $ex->getMessage());
+            return $this->respondWithError(404, 'Transaction failed', 'Something Went wrong');
         }
        
     }
 
     //view total amount charged for delivery
-    public function viewCards(Request $request)
+    public function viewCards()
     {
         $user = Auth::user();
         try {
-            $cards = UserCard::where('user_id', $user()->id)
-                ->select('id', 'card_number', 'card_type', 'bank')
-                ->get();
+            $cards = UserCard::where('user_id', $user->id)
+                        ->select('id', 'card_number', 'card_type', 'bank')
+                        ->get();
+
             if (is_null($cards)) {
                 return $this->respondWithError(401, 'Card not found', "User has no card");
             }
-            return $this->respondWithoutError($cards);
+
+            $data = ["message" => "User cards", "cards" => $cards];
+
+            return $this->respondWithoutError($data);
         } catch (\Exception  $ex) {
             Log::error("TransactionController::viewCard()  " . $ex->getMessage());
             return $this->respondWithError(500, 'Failed', "An error occurred.");
@@ -223,14 +240,13 @@ class TransactionController extends ApiController
                 return $this->respondWithError(404, 'Card operation failed', 'Card doesnt exist');
             }
             $user->authorization_code = $activeCard->authorization_code;
-            $user->id_user_cards = $activeCard->id;
-            $user->user_card = $activeCard->card_number;
+            $user->id_user_card = $activeCard->id;
+            //$user->user_card = $activeCard->card_number;
             $user->save();
             $response = [
                 'message' => 'Card selected',
                 'cardCode' => $user->authorization_code,
-                'cardNumber' => $user->user_card,
-                'cardId' => $user->id_user_cards
+                'cardId' => $user->id_user_card
             ];
             return $this->respondWithoutError($response);
         } catch (\Exception  $ex) {
@@ -344,7 +360,7 @@ class TransactionController extends ApiController
                 $user->authorization_code = $userCard->authorization_code;
                 $user->save();
 
-                return $this->respondWithoutError(["msg" => "Transaction successful", "user" => $user, "card_details" => $userCard]);
+                return $this->respondWithoutError(["message" => "Transaction successful", "user" => $user, "card_details" => $userCard]);
             } else {
                 return $this->respondWithError(401, 'Unable to verify payment', $content->data->gateway_response);
             }

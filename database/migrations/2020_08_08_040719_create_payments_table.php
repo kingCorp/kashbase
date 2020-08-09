@@ -18,15 +18,15 @@ class CreatePaymentsTable extends Migration
             $table->integer('user_id');
             $table->string('reference');
             $table->string('access_code');
-            $table->string('transaction_date');
+            $table->string('transaction_date')->nullable();
             $table->integer('via');
             $table->double('amount');
             $table->string('authorization_url');
-            $table->string('card_number');
-            $table->string('status');
-            $table->text('log');
-            $table->string('domain');
-            $table->string('bank');
+            $table->string('card_number')->nullable();
+            $table->string('status')->nullable();
+            $table->text('log')->nullable();
+            $table->string('domain')->nullable();
+            $table->string('bank')->nullable();
             $table->timestamps();
         });
     }
