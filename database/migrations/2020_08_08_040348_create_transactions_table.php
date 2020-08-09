@@ -20,6 +20,7 @@ class CreateTransactionsTable extends Migration
             $table->string('description');
             $table->enum('type',['credit','debit']);
             $table->double('amount');
+            $table->text('log')->nullable();
             $table->enum('status', ['pending','completed','failed']);
             $table->double('prev_balance');
             $table->double('current_balance');

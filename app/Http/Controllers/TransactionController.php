@@ -41,29 +41,38 @@ class TransactionController extends ApiController
             $user = Auth::user();
             $amount = $request->get('amount');
 
-            if(!$user){
-                return $this->respondWithError(404, 'User Login failed', 'User is not registered');
+            if($user->wallet < $amount){
+                return $this->respondWithError(404, 'User Transfer failed', 'Insufficient funds');
             }
+            
 
             $reciepient = User::find($request->get('reciepient_id'));
+
             if(is_null($reciepient)){
                 return $this->respondWithError(404, 'User Payment failed', 'User not found');
             }
 
-            $transaction = Transactions::create([
-                'user_id' => $user->id,
-                'amount' => $amount,
-                'type' => 'CREDIT',
-                'status' => 'PAID',
-                'currency' => 'NGN',
-                'description'=> 'WALLET TRANSFER',
-                'reciepient_id' => $user->id,
-                'prev_balance'   => $user->wallet,
-                'current_balance' => ($user->wallet + $amount),
-            ]);
-
             if(Hash::check($request->get('password'), $user->password)){
-                $data = ['message'=> 'Transaction successfull'];
+
+                $transaction = Transactions::create([
+                    'user_id' => $user->id,
+                    'amount' => $amount,
+                    'type' => 'credit',
+                    'status' => 'completed',
+                    'currency' => 'NGN',
+                    'description'=> 'WALLET TRANSFER',
+                    'reciepient_id' => $user->id,
+                    'prev_balance'   => $user->wallet,
+                    'current_balance' => ($user->wallet + $amount),
+                ]);
+    
+                $reciepient->wallet = ($reciepient->wallet + $amount);
+                $reciepient->save();
+    
+                $user->wallet = ($user->wallet - $amount);
+                $user->save();
+
+                $data = ['message'=> 'Transaction successfull', 'transaction' => $transaction];
                 return $this->respondWithoutError($data);
             } else {
                 return $this->respondWithError(404, 'User Transaction failed', 'User Password incorrect');
@@ -145,7 +154,7 @@ class TransactionController extends ApiController
                 $transaction = Transactions::create([
                     'user_id' => $user->id,
                     'amount' => $amount,
-                    'type' => 'CREDIT',
+                    'type' => 'credit',
                     'status' => 'completed',
                     'currency' => 'NGN',
                     'description'=> 'RECHARGE WALLET ',

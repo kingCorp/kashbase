@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\User;
 use Validator;
+use App\UserReciept;
+use App\Transactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -102,12 +104,146 @@ class UserController extends ApiController
     public function profile(Request $request)
     {
         try {
+            $user = Auth::user();
+            $data = ['message' => 'Profile successful', "user" => $user];
+            return $this->respondWithoutError($data);
+
+        } catch (\Exception $ex) {
+            Log::error("UserController::profile()  " . $ex->getMessage());
+            return $this->respondWithError(404, 'User Profile failed', 'Something Went wrong');
+        }
+       
+    }
+
+    public function verifyUserAccount(Request $request)
+    {
+        try {
+           
+            $validator = Validator::make($request->all(), [
+                'account' => 'required|numeric',
+                'bank' => 'required',
+            ]);
+            //if validator fails return json error response
+            if ($validator->fails()) {
+                $msg = "";
+                foreach ($validator->errors()->toArray() as $error) {
+                    foreach ($error as $errorMsg) {
+                        $msg .= "" . $errorMsg . " ";
+                    }
+                }
+                return $this->respondWithError(404, 'User Account failed', $msg);
+            }
+
+            $result = $this->verifyAccount($request->get('bank'), $request->get('account'));
+            return $this->respondWithoutError($result);
+
+        } catch (\Exception $ex) {
+            Log::error("UserController::profile()  " . $ex->getMessage());
+            return $this->respondWithError(404, 'User Profile failed', 'Something Went wrong');
+        }
+       
+    }
+
+    public function setBankAccount(Request $request)
+    {
+        try {
+             //validate the post request
+             $validator = Validator::make($request->all(), [
+                'bank' => 'required',
+                'account' => 'required|min:8',
+            ]);
+            //if validator fails return json error response
+            if ($validator->fails()) {
+                $msg = "";
+                foreach ($validator->errors()->toArray() as $error) {
+                    foreach ($error as $errorMsg) {
+                        $msg .= "" . $errorMsg . " ";
+                    }
+                }
+                return $this->respondWithError(404, 'Login failed', $msg);
+            }
            
             $user =Auth::user();
+            $bank = $request->get('bank');
+            $account = $request->get('account');
 
-            if(!$user){
-                return $this->respondWithError(404, 'User Login failed', 'User is not registered');
+
+            $user->bank->updateOrCreate(['user_id'=> $user->id],['bank' => $bank, 'account' => $account]);
+
+            $data = ['message' => 'Bank update successful', "user" => $user];
+            return $this->respondWithoutError($data);
+
+        } catch (\Exception $ex) {
+            Log::error("UserController::profile()  " . $ex->getMessage());
+            return $this->respondWithError(404, 'User Profile failed', 'Something Went wrong');
+        }
+       
+    }
+    
+    public function transferAccount(Request $request)
+    {
+        try {
+
+            //validate the post request
+            $validator = Validator::make($request->all(), [
+                'amount' => 'required',
+            ]);
+            //if validator fails return json error response
+            if ($validator->fails()) {
+                $msg = "";
+                foreach ($validator->errors()->toArray() as $error) {
+                    foreach ($error as $errorMsg) {
+                        $msg .= "" . $errorMsg . " ";
+                    }
+                }
+                return $this->respondWithError(404, 'Transfer failed', $msg);
             }
+
+            $amount = $request->get('amount');
+
+            $user =Auth::user();
+
+            $content = $this->generateReciept($user->authorization_code, $user->bank->account, $user->bank->bank);
+
+            if ($content->data->status) {
+
+                UserReciept::create([
+                    'type' => 'nuban',
+                    'name' => 'cashout',
+                    'authorization_code' => $user->authorization_code,
+                    'account_number' => $user->bank->account,
+                    'bank_code' => $user->bank->bank,
+                    'currency' => 'NGN',
+                    'description' => 'transfer reciept'
+                ]);
+
+                $result = $this->makeTransfer($content->data->data->recipient_code, ($amount * 100));
+
+                if($result->data->status){
+
+                    $transaction = Transactions::create([
+                        'user_id' => $user->id,
+                        'amount' => $amount,
+                        'type' => 'debit',
+                        'status' => 'completed',
+                        'currency' => 'NGN',
+                        'description'=> 'WALLET CASHOUT',
+                        'log' => $result->data->data,
+                        'reciepient_id' => $user->id,
+                        'prev_balance'   => $user->wallet,
+                        'current_balance' => ($user->wallet - $amount),
+                    ]);
+
+                } else {
+                    return $this->respondWithError(401, 'Unable to verify payment', $result->data->gateway_response);
+                }
+
+
+
+            } else {
+                return $this->respondWithError(401, 'Unable to verify payment', $content->data->gateway_response);
+            }
+            
 
             $data = ['message' => 'Profile successful', "user" => $user];
             return $this->respondWithoutError($data);
