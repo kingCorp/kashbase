@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\User;
 use Validator;
 use App\UserBank;
+use App\ActivityLog;
 use App\UserReciept;
 use App\Transactions;
 use Illuminate\Http\Request;
@@ -201,7 +202,7 @@ class UserController extends ApiController
             if (!$user->bank) {
                 return $this->respondWithError(401, 'Unable to continue transfer', "User has no Active Bank Account");
             }
-            
+
             $content = $this->generateReciept($user->bank->account, $user->bank->bank);
 
             if ($content->status) {
@@ -235,6 +236,12 @@ class UserController extends ApiController
 
                     $user->wallet = ($user->wallet - $amount);
                     $user->save();
+
+                    ActivityLog::create([
+                        'user_id' => $user->id,
+                        'action' => 'CASHOUT WALLET '.$user->full_name,
+                        'transaction_id' => $transaction->id
+                    ]);
 
                     $data = ['message' => 'Transaction successful', "transaction" => $transaction];
                     return $this->respondWithoutError($data);

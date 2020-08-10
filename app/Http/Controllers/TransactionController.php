@@ -83,6 +83,12 @@ class TransactionController extends ApiController
                 $user->wallet = ($user->wallet - $amount);
                 $user->save();
 
+                ActivityLog::create([
+                    'user_id' => $user->id,
+                    'action' => 'TRANSFER FROM WALLET '.$user->full_name,
+                    'transaction_id' => $transaction->id
+                ]);
+
                 $data = ['message'=> 'Transaction successfull', 'transaction' => $transaction];
                 return $this->respondWithoutError($data);
             } else {
