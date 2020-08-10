@@ -27,6 +27,10 @@ $router->group(['prefix'=>'api/v1'], function() use($router){
         $router->group(['prefix'=>'user'], function() use($router){
             $router->get('profile/','UserController@profile');
 
+            $router->post('account/verify/','UserController@verifyUserAccount');
+            $router->put('account/','UserController@setBankAccount');
+            $router->get('cashout/','UserController@transferAccount');
+
             $router->post('transfer/','TransactionController@transfer');
             $router->post('verify/','TransactionController@verifyUser');
             $router->post('recharge/','TransactionController@rechargeWallet');

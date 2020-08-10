@@ -234,6 +234,9 @@ class UserController extends ApiController
                         'current_balance' => ($user->wallet - $amount),
                     ]);
 
+                    $data = ['message' => 'Transaction successful', "transaction" => $transaction];
+            return $this->respondWithoutError($data);
+
                 } else {
                     return $this->respondWithError(401, 'Unable to verify payment', $result->data->gateway_response);
                 }
@@ -244,10 +247,6 @@ class UserController extends ApiController
                 return $this->respondWithError(401, 'Unable to verify payment', $content->data->gateway_response);
             }
             
-
-            $data = ['message' => 'Profile successful', "user" => $user];
-            return $this->respondWithoutError($data);
-
         } catch (\Exception $ex) {
             Log::error("UserController::profile()  " . $ex->getMessage());
             return $this->respondWithError(404, 'User Profile failed', 'Something Went wrong');
