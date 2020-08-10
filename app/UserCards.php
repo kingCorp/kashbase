@@ -5,7 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 
 
-class UserCard extends Model 
+class UserCards extends Model 
 {
 
     /**
@@ -27,6 +27,5 @@ class UserCard extends Model
         'bank',
         'country_code',
     ];
-
     
 }

@@ -17,7 +17,7 @@ class UserBank extends Migration
         Schema::create('user_banks', function (Blueprint $table) {
             $table->id();
             $table->integer('user_id');
-            $table->integer('account')->nullable();
+            $table->string('account')->nullable();
             $table->string('bank')->nullable();
             $table->timestamps();
         });

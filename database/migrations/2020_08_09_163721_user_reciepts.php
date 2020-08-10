@@ -21,7 +21,7 @@ class UserReciepts extends Migration
             $table->string('description')->nullable();
             $table->double('amount')->nullable();
             $table->string('bank')->nullable();
-            $table->integer('account')->nullable();
+            $table->string('account')->nullable();
             $table->string('currency')->nullable();
             $table->timestamps();
         });

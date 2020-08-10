@@ -23,7 +23,8 @@ class UserReciept extends Model
         'currency',
         'description',
         'reciept_code',
-        'amount'
+        'amount',
+        'name'
     ];
 
     public function user(){

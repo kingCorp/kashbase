@@ -87,7 +87,7 @@ class ApiController extends Controller
         return json_decode($result->getBody());
     }
 
-    public function generateReciept($authRef, $account_no, $bank_code)
+    public function generateReciept($account_no, $bank_code)
     {
         $client = new Client([
             'curl' => [CURLOPT_SSL_VERIFYPEER => env('VERIFY_SSL')]
@@ -100,7 +100,6 @@ class ApiController extends Controller
         $paymentData = [
             'type' => 'nuban',
             'name' => 'cashout',
-            'authorization_code' => $authRef,
             'account_number' => $account_no,
             'bank_code' => $code,
             'currency' => 'NGN',

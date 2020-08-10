@@ -19,7 +19,7 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
      * @var array
      */
     protected $fillable = [
-        'full_name', 'email', 'password', 'type', 'phone', 'sex', 'email_verified_at', 'avatar_url', 'authorization_ref', 'id_user_card', 'wallet','api_token'
+        'full_name', 'email', 'password', 'type', 'phone', 'sex', 'email_verified_at', 'avatar_url', 'authorization_code', 'id_user_card', 'wallet','api_token'
     ];
 
     /**
@@ -29,9 +29,9 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
      */
     protected $hidden = [
         'password',
-        'authorization_ref', 
-        'id_user_card', 
-        'wallet',
+        'authorization_code', 
+        //'id_user_card', 
+        //'wallet',
         'api_token'
     ];
 
@@ -42,5 +42,9 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
 
     public function bank(){
         return $this->hasOne(UserBank::class, 'user_id');
+    }
+
+    public function reciept(){
+        return $this->hasMany(UserReciept::class, 'user_id');
     }
 }

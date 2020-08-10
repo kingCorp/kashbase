@@ -5,15 +5,14 @@ namespace App\Http\Controllers;
 use App\User;
 use Validator;
 use App\Payment;
-use App\UserCard;
 use App\ActivityLog;
 use App\Transactions;
-use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\ApiController;
+use App\UserCards;
 
 class TransactionController extends ApiController
 {
@@ -25,7 +24,7 @@ class TransactionController extends ApiController
             $validator = Validator::make($request->all(), [
                 'password' => 'required',
                 'amount' => 'required|numeric',
-                'reciepient_id' => 'required'
+                'email' => 'required'
             ]);
             //if validator fails return json error response
             if ($validator->fails()) {
@@ -46,9 +45,9 @@ class TransactionController extends ApiController
             }
             
 
-            $reciepient = User::find($request->get('reciepient_id'));
+            $reciepient = User::where('email',$request->get('email'))->first();
 
-            if(is_null($reciepient)){
+            if(!$reciepient){
                 return $this->respondWithError(404, 'User Payment failed', 'User not found');
             }
 
@@ -57,13 +56,25 @@ class TransactionController extends ApiController
                 $transaction = Transactions::create([
                     'user_id' => $user->id,
                     'amount' => $amount,
+                    'type' => 'debit',
+                    'status' => 'completed',
+                    'currency' => 'NGN',
+                    'description'=> 'WALLET TRANSFER',
+                    'reciepient_id' => $reciepient->id,
+                    'prev_balance'   => $user->wallet,
+                    'current_balance' => ($user->wallet - $amount),
+                ]);
+
+                Transactions::create([
+                    'user_id' => $reciepient->id,
+                    'amount' => $amount,
                     'type' => 'credit',
                     'status' => 'completed',
                     'currency' => 'NGN',
                     'description'=> 'WALLET TRANSFER',
-                    'reciepient_id' => $user->id,
-                    'prev_balance'   => $user->wallet,
-                    'current_balance' => ($user->wallet + $amount),
+                    'reciepient_id' => $reciepient->id,
+                    'prev_balance'   => $reciepient->wallet,
+                    'current_balance' => ($reciepient->wallet + $amount),
                 ]);
     
                 $reciepient->wallet = ($reciepient->wallet + $amount);
@@ -193,9 +204,11 @@ class TransactionController extends ApiController
     {
         $user = Auth::user();
         try {
-            $cards = UserCard::where('user_id', $user->id)
-                        ->select('id', 'card_number', 'card_type', 'bank')
-                        ->get();
+            $cards = UserCards::where('user_id', $user->id)
+            ->select('id', 'card_number', 'card_type', 'bank')
+            ->get();
+            
+            
 
             if (is_null($cards)) {
                 return $this->respondWithError(401, 'Card not found', "User has no card");
@@ -216,7 +229,7 @@ class TransactionController extends ApiController
     {
         try {
             $user = Auth::user();
-            $usercard = UserCard::where('id_user', $user->id)->where('id', $id)->first();
+            $usercard = UserCards::where('id_user', $user->id)->where('id', $id)->first();
             if (is_null($usercard)) {
                 return $this->respondWithError(401, 'Card not found', "User has no card");
             }
@@ -244,7 +257,7 @@ class TransactionController extends ApiController
     {
         try {
             $user = Auth::user();
-            $activeCard = UserCard::where('id', $id)->where('user_id', $user->id)->first();
+            $activeCard = UserCards::where('id', $id)->where('user_id', $user->id)->first();
             if (is_null($activeCard)) {
                 return $this->respondWithError(404, 'Card operation failed', 'Card doesnt exist');
             }
@@ -349,7 +362,7 @@ class TransactionController extends ApiController
 
                 //create a user card details
                 $user = Auth::user();
-                $userCard = UserCard::create([
+                $userCard = UserCards::create([
                     'user_id' => $user->id,
                     'card_number' => $content->data->authorization->last4,
                     'expiry_month'  => $content->data->authorization->exp_month,
